@@ -83,5 +83,6 @@ for way in all_ways:
         "nodes" : way.nodes
     })
 
-with open("vancouver.json","w+") as f:
+with open("output.json","w+") as f:
+
     f.write(json.dumps(final_list))
