@@ -1,7 +1,17 @@
 import xml.sax
 import json
 import io
-FILE = r"ingress.osm"
+import sys
+import os
+import random
+FILE = sys.argv[1]
+TEMPID = str(random.randint(1111,9999))
+
+print("Converting")
+os.system(f"osmconvert.exe {FILE} --out-osm -o=\"temp{TEMPID}.osm\"")
+print("Filtering")
+os.system(f"osmfilter.exe temp{TEMPID}.osm --keep=\"maxspeed\" -o=\"{TEMPID}ready.osm\"")
+FILE = f"{TEMPID}ready.osm"
 
 def parse_speed(i:str) -> int:
     try:
@@ -42,8 +52,9 @@ class OSMHandler(xml.sax.ContentHandler):
         self.current_way = SpeedWay()
         self.is_on_way_mode = False
         self.current_way_is_hwy = False
-        self.node_file = open("nodes.bin","wb+")
+        self.node_file = io.BytesIO()
         self.nodeincrement = 0
+        self.found_ways = 0
 
     # Called when an element starts
     def startElement(self, tag, attrib):
@@ -86,7 +97,10 @@ class OSMHandler(xml.sax.ContentHandler):
     def endElement(self, tag):
         global all_ways
         if self.current_way.maxspeed != -1 and self.is_on_way_mode and tag == "way" and self.current_way_is_hwy:
-            print("|",end="")
+            #sys.stdout.write(self.current_way.name+" ")
+            #sys.stdout.flush()
+            self.found_ways += 1
+            print(self.found_ways,end="\r")
             all_ways.append(self.current_way)
 
 parser = xml.sax.make_parser()
@@ -104,5 +118,5 @@ for way in all_ways:
         "nodes" : way.nodes
     })
 
-with open("vancouver.json","w+") as f:
+with open(sys.argv[2],"w+") as f:
     f.write(json.dumps(final_list))
