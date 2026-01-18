@@ -6,9 +6,11 @@ import os
 import random
 FILE = sys.argv[1]
 TEMPID = str(random.randint(1111,9999))
-print("Converting")
-os.system(f"osmfilter.exe {FILE} --keep=\"maxspeed\" -o=\"{TEMPID}ready.osm\"")
-FILE = f"{TEMPID}ready.osm"
+
+if not FILE.endswith("osm"):
+    print("Converting")
+    os.system(f"osmfilter.exe temp{TEMPID}.osm --keep=\"maxspeed\" -o=\"{TEMPID}ready.osm\"")
+    FILE = f"{TEMPID}ready.osm"
 def parse_speed(i:str) -> int:
     try:
         return int(i)
