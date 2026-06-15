@@ -1,1 +1,1 @@
-pyosmium
+osmium
