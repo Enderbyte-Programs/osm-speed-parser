@@ -8,6 +8,7 @@ import osmium.index
 import typing
 import time
 import argparse
+import platform
 
 parser = argparse.ArgumentParser("speedtest-osmium.py")
 parser.add_argument("-a","--append",action="store_true",help="Add to way lists instead of overwriting them",required=False)
@@ -19,7 +20,7 @@ FILE = args.filename
 ISFINISHED = False
 start_time = time.time()
 ways_found = 0
-file_open_mode = "a+" if args.append else "w+"
+append_to_file = parser.append
 location_storage_implementation = "sparse_file_array" if args.diskcache else "flex_mem"
 
 if not FILE.endswith("osm") and not FILE.endswith("pbf"):
@@ -27,6 +28,9 @@ if not FILE.endswith("osm") and not FILE.endswith("pbf"):
     sys.exit(-1)
 
 os.makedirs("output",exist_ok=True)
+
+def get_open_file_limit() -> int:
+
 
 def parse_speed(i:str) -> int:
     try:
@@ -62,16 +66,16 @@ class SpeedWay:
     def format_for_output(self):
         return f"{self.name},{self.maxspeed},{self.conditional_speed},{self.advisory_speed},{self._nodelist_tostr()}\n"
 
-files:dict[str,typing.TextIO] = {}
+files:dict[str,""] = {}
 node_id_index:list[int] = []
 
 def demand_write(way:SpeedWay):
     filepath = way.get_filestring()
 
     if not filepath in files:
-        files[filepath] = open("output/"+filepath,file_open_mode,encoding="utf-8")
+        files[filepath] = ""
 
-    files[filepath].write(way.format_for_output())
+    files[filepath] += way.format_for_output()
 
 def progress_thread():
     time.sleep(1)
@@ -103,8 +107,19 @@ print("Loading nodes. Please wait...")
 threading.Thread(target=progress_thread).start()
 osmium.apply(FILE,reader_wrapper,WayHandler())
 
-print("\n\nCompleted")
+print("\n\nWriting out...")
 ISFINISHED = True
 
-for file in files.values():
-    file.close()
+wocount = 0
+for file in files:
+    if append_to_file:
+        with open("output/"+file,"a+") as f:
+            f.write(files[file])
+    else:
+        with open("output/"+file,"w+") as f:
+            f.write(files[file])
+
+    wocount += 1
+
+print(f"Wrote {wocount} files out.")
+print("Completed")
