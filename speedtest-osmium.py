@@ -90,7 +90,7 @@ class WayHandler(osmium.SimpleHandler):
         if "maxspeed:conditional" in available.tags:
             way.conditional_speed = parse_speed(available.tags.get("maxspeed:conditional"))
         if "maxspeed:advisory" in available.tags:
-            way.conditional_speed = parse_speed(available.tags.get("maxspeed:advisory"))
+            way.advisory_speed_speed = parse_speed(available.tags.get("maxspeed:advisory"))
         if "name" in available.tags:
             way.name = available.tags.get("name").replace(",","")
         ways_found += 1
