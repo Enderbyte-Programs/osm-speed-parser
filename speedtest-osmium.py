@@ -5,10 +5,8 @@ import threading
 import osmium
 import osmium.osm
 import osmium.index
-import typing
 import time
 import argparse
-import platform
 
 parser = argparse.ArgumentParser("speedtest-osmium.py")
 parser.add_argument("-a","--append",action="store_true",help="Add to way lists instead of overwriting them",required=False)
@@ -35,14 +33,17 @@ def parse_speed(i:str) -> int:
     except:
         #Try  mph or  kph
         if "kmh" in i or "kph" in i:
-            return int(i.split(" ")[0])
+            return round(float(i.split(" ")[0]))
         
         elif "mih" in i or "mph" in i:
-            return round(int(i.split(" ")[0]) * 1.6,-1)
+            if " " in i.strip():
+                return round(float(i.split(" ")[0]) * 1.6,-1)
+            else:
+                return round(float(i.strip().replace("mph","0","mih","0")) * 1.6,-1)
         
         else:
             try:
-                return int(i.split(" ")[0])
+                return round(float(i.split(" ")[0]))
             except:
                 return -2#Unparseable
 
@@ -102,7 +103,12 @@ location_cache = osmium.index.create_map(location_storage_implementation)
 reader_wrapper = osmium.NodeLocationsForWays(location_cache)
 print("Loading nodes. Please wait...")
 threading.Thread(target=progress_thread).start()
-osmium.apply(FILE,reader_wrapper,WayHandler())
+try:
+    osmium.apply(FILE,reader_wrapper,WayHandler())
+except Exception as e:
+    ISFINISHED = True
+    print("Processing aborted due to error")
+    raise
 
 print("\n\nWriting out...")
 ISFINISHED = True
