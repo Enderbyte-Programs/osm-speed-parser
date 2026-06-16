@@ -29,9 +29,6 @@ if not FILE.endswith("osm") and not FILE.endswith("pbf"):
 
 os.makedirs("output",exist_ok=True)
 
-def get_open_file_limit() -> int:
-
-
 def parse_speed(i:str) -> int:
     try:
         return int(i)
