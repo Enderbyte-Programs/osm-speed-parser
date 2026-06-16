@@ -21,7 +21,7 @@ ISFINISHED = False
 start_time = time.time()
 ways_found = 0
 append_to_file = parser.append
-location_storage_implementation = "sparse_file_array" if args.diskcache else "flex_mem"
+location_storage_implementation = "sparse_file_array,nodes.db" if args.diskcache else "flex_mem"
 
 if not FILE.endswith("osm") and not FILE.endswith("pbf"):
     print("bad filetype")
