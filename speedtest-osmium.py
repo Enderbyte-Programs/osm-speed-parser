@@ -104,7 +104,7 @@ def progress_thread():
         fifteenminute_tracker.pop(0)
         fifteenminute_tracker.append(delta)
 
-        print(f"{str(tdelta)} | Total: {ways_found} | Δ = {delta} | 1m: {round(sum(oneminute_tracker)/len(oneminute_tracker))} w/s | 5m: {round(sum(fiveminute_tracker)/len(fiveminute_tracker))} | 15m: {round(sum(fifteenminute_tracker)/len(fifteenminute_tracker))} w/s | All: {round(ways_found/tdelta.total_seconds())} w/s",end="\r")
+        print(f"{str(tdelta)} | Total: {ways_found} | Δ = {delta} | 1m: {round(sum(oneminute_tracker)/len(oneminute_tracker))} w/s | 5m: {round(sum(fiveminute_tracker)/len(fiveminute_tracker))} w/s | 15m: {round(sum(fifteenminute_tracker)/len(fifteenminute_tracker))} w/s | All: {round(ways_found/tdelta.total_seconds())} w/s",end="\r")
 
         last_wayvalue = copy.copy(ways_found)
         time.sleep(1/updatefrequency)
