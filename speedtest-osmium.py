@@ -7,19 +7,29 @@ import osmium.osm
 import osmium.index
 import time
 import argparse
+import datetime
+import copy
 
 parser = argparse.ArgumentParser("speedtest-osmium.py")
 parser.add_argument("-a","--append",action="store_true",help="Add to way lists instead of overwriting them",required=False)
-parser.add_argument("-d","--diskcache",action="store_true",help="Cache nodes on the disk instead of in memory")
+parser.add_argument("-d","--diskcache",action="store_true",help="Cache nodes on the disk instead of in memory",required=False)
+parser.add_argument("-q","--quiet",action="store_true",help="If enabled, the program will produce no output except for errors",required=False)
+parser.add_argument("-f","--frequency",action="store",type=float,default=1.0,required=False,help="The frequency to receive status updates at in Hz")
 parser.add_argument("filename",action="store",type=str)
 args = parser.parse_args(sys.argv[1:])
 
-FILE = args.filename
+FILE:str = args.filename
 ISFINISHED = False
 start_time = time.time()
 ways_found = 0
-append_to_file = args.append
+append_to_file:bool = args.append
+quiet:bool = args.quiet
+updatefrequency:float = args.frequency
 location_storage_implementation = "sparse_file_array,nodes.db" if args.diskcache else "flex_mem"
+
+oneminute_tracker:list[int] = [0] * int(60 * updatefrequency)
+fiveminute_tracker:list[int] = [0] * int(60 * 5 * updatefrequency)
+fifteenminute_tracker:list[int] = [0] * int(60 * 15 * updatefrequency)
 
 if not FILE.endswith("osm") and not FILE.endswith("pbf"):
     print("bad filetype")
@@ -32,20 +42,26 @@ def parse_speed(i:str) -> int:
         return int(i)
     except:
         #Try  mph or  kph
-        if "kmh" in i or "kph" in i:
-            return round(float(i.split(" ")[0]))
-        
-        elif "mih" in i or "mph" in i:
-            if " " in i.strip():
-                return round(float(i.split(" ")[0]) * 1.6,-1)
+        try:
+            if "kmh" in i or "kph" in i:
+                if " " in i.strip():
+                    return round(float(i.split(" ")[0]))
+                else:
+                    return round(float(i.strip().replace("kph","").replace("kmh","")))
+            
+            elif "mih" in i or "mph" in i:
+                if " " in i.strip():
+                    return round(float(i.split(" ")[0]) * 1.6,-1)
+                else:
+                    return round(float(i.strip().replace("mph","").replace("mih","")) * 1.6,-1)
+            
             else:
-                return round(float(i.strip().replace("mph","").replace("mih","")) * 1.6,-1)
-        
-        else:
-            try:
-                return round(float(i.split(" ")[0]))
-            except:
-                return -2#Unparseable
+                try:
+                    return round(float(i.split(" ")[0]))
+                except:
+                    return -2#Unparseable
+        except:
+            return -2#Other formatting error
 
 class SpeedWay:
     def __init__(self):
@@ -76,11 +92,23 @@ def demand_write(way:SpeedWay):
     files[filepath] += way.format_for_output()
 
 def progress_thread():
-    time.sleep(1)
+    time.sleep(1/updatefrequency)
+    last_wayvalue = 0
     while not ISFINISHED:
-        tdelta = time.time() - start_time
-        print(f"{ways_found} in {round(tdelta)}s ({round(ways_found/tdelta)} ways/s)",end="\r")
-        time.sleep(1)
+        tdelta = datetime.timedelta(seconds=(int(time.time()) - int(start_time)))
+        delta = ways_found - last_wayvalue
+        oneminute_tracker.pop(0)
+        oneminute_tracker.append(delta)
+        fiveminute_tracker.pop(0)
+        fiveminute_tracker.append(delta)
+        fifteenminute_tracker.pop(0)
+        fifteenminute_tracker.append(delta)
+
+        print(f"{str(tdelta)} | Total: {ways_found} | Δ = {delta} | 1m: {round(sum(oneminute_tracker)/len(oneminute_tracker))} w/s | 5m: {round(sum(fiveminute_tracker)/len(fiveminute_tracker))} | 15m: {round(sum(fifteenminute_tracker)/len(fifteenminute_tracker))} w/s | All: {round(ways_found/tdelta.total_seconds())} w/s",end="\r")
+
+        last_wayvalue = copy.copy(ways_found)
+        time.sleep(1/updatefrequency)
+
 class WayHandler(osmium.SimpleHandler):
     def way(self,available:osmium.osm.Way):
         global ways_found
@@ -92,7 +120,7 @@ class WayHandler(osmium.SimpleHandler):
         if "maxspeed:conditional" in available.tags:
             way.conditional_speed = parse_speed(available.tags.get("maxspeed:conditional"))
         if "maxspeed:advisory" in available.tags:
-            way.advisory_speed_speed = parse_speed(available.tags.get("maxspeed:advisory"))
+            way.advisory_speed = parse_speed(available.tags.get("maxspeed:advisory"))
         if "name" in available.tags:
             way.name = available.tags.get("name").replace(",","")
         ways_found += 1
@@ -101,16 +129,20 @@ class WayHandler(osmium.SimpleHandler):
 #fp = osmium.FileProcessor(FILE).with_filter(osmium.filter.EntityFilter(osmium.osm.WAY)).with_filter(osmium.filter.KeyFilter("maxspeed"))
 location_cache = osmium.index.create_map(location_storage_implementation)
 reader_wrapper = osmium.NodeLocationsForWays(location_cache)
-print("Loading nodes. Please wait...")
-threading.Thread(target=progress_thread).start()
+
+if not quiet:
+    print("Loading nodes. Please wait...")
+    threading.Thread(target=progress_thread).start()
+
+
 try:
     osmium.apply(FILE,reader_wrapper,WayHandler())
 except Exception as e:
     ISFINISHED = True
     print("Processing aborted due to error")
     raise
-
-print("\n\nWriting out...")
+if not quiet:
+    print("\n\nWriting out...")
 ISFINISHED = True
 
 wocount = 0
@@ -124,5 +156,6 @@ for file in files:
 
     wocount += 1
 
-print(f"Wrote {wocount} files out.")
-print("Completed")
+if not quiet:
+    print(f"Wrote {wocount} files out.")
+    print("Completed")
