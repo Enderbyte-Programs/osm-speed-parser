@@ -5,6 +5,7 @@ import threading
 import osmium
 import osmium.osm
 import osmium.index
+import osmium.filter
 import time
 import argparse
 import datetime
@@ -136,7 +137,7 @@ if not quiet:
 
 
 try:
-    osmium.apply(FILE,reader_wrapper,WayHandler())
+    osmium.apply(FILE,osmium.filter.KeyFilter("maxspeed").enable_for(osmium.osm.WAY),reader_wrapper,WayHandler())
 except Exception as e:
     ISFINISHED = True
     print("Processing aborted due to error")
@@ -148,10 +149,10 @@ ISFINISHED = True
 wocount = 0
 for file in files:
     if append_to_file:
-        with open("output/"+file,"a+") as f:
+        with open("output/"+file,"a+",encoding="utf-8") as f:
             f.write(files[file])
     else:
-        with open("output/"+file,"w+") as f:
+        with open("output/"+file,"w+",encoding="utf-8") as f:
             f.write(files[file])
 
     wocount += 1
