@@ -109,76 +109,79 @@ def ncurses_progress_thread(stdscr):
     curses.init_pair(1,curses.COLOR_RED,curses.COLOR_BLACK)
     curses.init_pair(2,curses.COLOR_GREEN,curses.COLOR_BLACK)
     while not ISFINISHED:
-        tick += 1
-        if tick == 60:
-            minutes.append(sum(oneminute_tracker))
-            minutes.pop(0)
-            tick = 0
+        try:
+            tick += 1
+            if tick == 60:
+                minutes.append(sum(oneminute_tracker))
+                minutes.pop(0)
+                tick = 0
 
-        stdscr.clear()
-        tdelta = datetime.timedelta(seconds=(int(time.time()) - int(start_time)))
-        delta = ways_found - last_wayvalue
-        oneminute_tracker.pop(0)
-        oneminute_tracker.append(delta)
-        fiveminute_tracker.pop(0)
-        fiveminute_tracker.append(delta)
-        fifteenminute_tracker.pop(0)
-        fifteenminute_tracker.append(delta)
+            stdscr.clear()
+            tdelta = datetime.timedelta(seconds=(int(time.time()) - int(start_time)))
+            delta = ways_found - last_wayvalue
+            oneminute_tracker.pop(0)
+            oneminute_tracker.append(delta)
+            fiveminute_tracker.pop(0)
+            fiveminute_tracker.append(delta)
+            fifteenminute_tracker.pop(0)
+            fifteenminute_tracker.append(delta)
 
-        oneminute_throughput = round(sum(oneminute_tracker)/60)
-        fiveminute_throughput = round(sum(fiveminute_tracker)/(60 * 5))
-        fifteenminute_throughput = round(sum(fifteenminute_tracker )/ (60 * 15))
-        overall_throughput = round(ways_found / tdelta.total_seconds())
+            oneminute_throughput = round(sum(oneminute_tracker)/60)
+            fiveminute_throughput = round(sum(fiveminute_tracker)/(60 * 5))
+            fifteenminute_throughput = round(sum(fifteenminute_tracker )/ (60 * 15))
+            overall_throughput = round(ways_found / tdelta.total_seconds())
 
-        mx,my = os.get_terminal_size()
-        mx -= 1
-        my -= 1
-        available_rows_for_writing = my - 3
-        graph_y_space = available_rows_for_writing // 2
-        secondly_graph_y_start = 3
-        minutely_graph_y_start = 3 + graph_y_space
-        
-        selected_secondly_data = fifteenminute_tracker[-mx:]
-        selected_minutely_data = minutes[-mx:]
-        secondly_yincrement = max(selected_secondly_data) / graph_y_space
-        minutely_yincrement = max(selected_minutely_data) / graph_y_space
-        secondly_average_block_limit = int((overall_throughput) / max(selected_secondly_data) * graph_y_space)
-        minutely_average_block_limit = int((overall_throughput) / max(selected_minutely_data) * graph_y_space)
+            mx,my = os.get_terminal_size()
+            mx -= 1
+            my -= 1
+            available_rows_for_writing = my - 3
+            graph_y_space = available_rows_for_writing // 2
+            secondly_graph_y_start = 3
+            minutely_graph_y_start = 3 + graph_y_space
+            
+            selected_secondly_data = fifteenminute_tracker[-mx:]
+            selected_minutely_data = minutes[-mx:]
+            secondly_yincrement = max(selected_secondly_data) / graph_y_space
+            minutely_yincrement = max(selected_minutely_data) / graph_y_space
+            secondly_average_block_limit = int((overall_throughput) / max(selected_secondly_data) * graph_y_space)
+            minutely_average_block_limit = int((overall_throughput) / max(selected_minutely_data) * graph_y_space)
 
-        stdscr.addstr(0,0,f"{str(tdelta)} - Found a total of {ways_found} ways. All average: {overall_throughput} w/s. Last tick: {delta} processed")
-        stdscr.addstr(1,0,f"1m: {oneminute_throughput} w/s | 5m: {fiveminute_throughput} w/s | 15m: {fifteenminute_throughput} w/s")
-        stdscr.addstr(2,0,"─"*mx)
-        stdscr.addstr(2,0,"Top: secondly throughput. Bottom: Minutely throughput")
+            stdscr.addstr(0,0,f"{str(tdelta)} - Found a total of {ways_found} ways. All average: {overall_throughput} w/s. Last tick: {delta} processed")
+            stdscr.addstr(1,0,f"1m: {oneminute_throughput} w/s | 5m: {fiveminute_throughput} w/s | 15m: {fifteenminute_throughput} w/s")
+            stdscr.addstr(2,0,"─"*mx)
+            stdscr.addstr(2,0,"Top: secondly throughput. Bottom: Minutely throughput")
 
-        wtick = 0
+            wtick = 0
 
-        while wtick < mx:
+            while wtick < mx:
 
-            selsec = selected_secondly_data[wtick]
-            btick = 0
-            remaining_blocks = selsec / max(selected_secondly_data) * graph_y_space
-            while remaining_blocks > 0:
-                if btick <= secondly_average_block_limit:
-                    stdscr.addstr((secondly_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(1))
-                else:
-                    stdscr.addstr((secondly_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(2))
-                remaining_blocks -= 1
-                btick += 1
+                selsec = selected_secondly_data[wtick]
+                btick = 0
+                remaining_blocks = selsec / max(selected_secondly_data) * graph_y_space
+                while remaining_blocks > 0:
+                    if btick <= secondly_average_block_limit:
+                        stdscr.addstr((secondly_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(1))
+                    else:
+                        stdscr.addstr((secondly_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(2))
+                    remaining_blocks -= 1
+                    btick += 1
 
-            selmin = selected_minutely_data[wtick]
-            btick = 0
-            remaining_blocks = selmin / max(selected_minutely_data) * graph_y_space
-            while remaining_blocks > 0:
-                if btick <= minutely_average_block_limit:
-                    stdscr.addstr((minutely_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(1))
-                else:
-                    stdscr.addstr((minutely_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(2))
-                remaining_blocks -= 1
-                btick += 1
+                selmin = selected_minutely_data[wtick]
+                btick = 0
+                remaining_blocks = selmin / max(selected_minutely_data) * graph_y_space
+                while remaining_blocks > 0:
+                    if btick <= minutely_average_block_limit:
+                        stdscr.addstr((minutely_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(1))
+                    else:
+                        stdscr.addstr((minutely_graph_y_start + graph_y_space) - btick,wtick,"█",curses.color_pair(2))
+                    remaining_blocks -= 1
+                    btick += 1
 
-            wtick += 1
+                wtick += 1
 
-        stdscr.refresh()
+            stdscr.refresh()
+        except:
+            pass#Ignore curses error
         last_wayvalue = copy.copy(ways_found)
         time.sleep(1/updatefrequency)
 
