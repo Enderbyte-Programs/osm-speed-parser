@@ -131,7 +131,8 @@ def ncurses_progress_thread(stdscr):
             fifteenminute_throughput = round(sum(fifteenminute_tracker )/ (60 * 15))
             overall_throughput = round(ways_found / tdelta.total_seconds())
 
-            mx,my = os.get_terminal_size()
+            #mx,my = os.get_terminal_size()
+            my,mx = stdscr.getmaxyx()
             mx -= 1
             my -= 1
             available_rows_for_writing = my - 3
