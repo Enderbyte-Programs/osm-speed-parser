@@ -145,7 +145,7 @@ def ncurses_progress_thread(stdscr):
             secondly_yincrement = max(selected_secondly_data) / graph_y_space
             minutely_yincrement = max(selected_minutely_data) / graph_y_space
             secondly_average_block_limit = int((overall_throughput) / max(selected_secondly_data) * graph_y_space)
-            minutely_average_block_limit = int((overall_throughput) / max(selected_minutely_data) * graph_y_space)
+            minutely_average_block_limit = int((overall_throughput * 60) / max(selected_minutely_data) * graph_y_space)
 
             stdscr.addstr(0,0,f"{str(tdelta)} - Found a total of {ways_found} ways. All average: {overall_throughput} w/s. Last tick: {delta} processed")
             stdscr.addstr(1,0,f"1m: {oneminute_throughput} w/s | 5m: {fiveminute_throughput} w/s | 15m: {fifteenminute_throughput} w/s")
