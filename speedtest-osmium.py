@@ -14,6 +14,7 @@ import copy
 parser = argparse.ArgumentParser("speedtest-osmium.py")
 parser.add_argument("-a","--append",action="store_true",help="Add to way lists instead of overwriting them",required=False)
 parser.add_argument("-d","--diskcache",action="store_true",help="Cache nodes on the disk instead of in memory",required=False)
+parser.add_argument("-n","--dense",action="store_true",help="Use a dense file array instead of a sparse file array",required=False)
 parser.add_argument("-q","--quiet",action="store_true",help="If enabled, the program will produce no output except for errors",required=False)
 parser.add_argument("-f","--frequency",action="store",type=float,default=1.0,required=False,help="The frequency to receive status updates at in Hz")
 parser.add_argument("-g","--graph",action="store_true",required=False,help="Use ncurses to display a detailed graph about the throughput of the application")
@@ -28,6 +29,13 @@ append_to_file:bool = args.append
 quiet:bool = args.quiet
 updatefrequency:float = args.frequency
 location_storage_implementation = "sparse_file_array,nodes.db" if args.diskcache else "flex_mem"
+
+if args.diskcache and args.dense:
+    location_storage_implementation = "dense_file_array,nodes.db"
+
+if not quiet:
+    print(f"Using {location_storage_implementation} for storage.")
+
 use_ncurses:bool = args.graph
 
 if use_ncurses:
@@ -108,7 +116,15 @@ def ncurses_progress_thread(stdscr):
     curses.start_color()
     curses.init_pair(1,curses.COLOR_RED,curses.COLOR_BLACK)
     curses.init_pair(2,curses.COLOR_GREEN,curses.COLOR_BLACK)
+    stdscr.nodelay(True)
     while not ISFINISHED:
+        ch = stdscr.getch()
+        if ch == curses.KEY_RESIZE:
+            try:
+                curses.resize_term(0,0)
+            except:
+                pass
+            
         try:
             tick += 1
             if tick == 60:
