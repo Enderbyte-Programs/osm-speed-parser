@@ -10,6 +10,7 @@ import time
 import argparse
 import datetime
 import copy
+import tarfile
 
 parser = argparse.ArgumentParser("speedtest-osmium.py")
 parser.add_argument("-a","--append",action="store_true",help="Add to way lists instead of overwriting them",required=False)
@@ -18,6 +19,7 @@ parser.add_argument("-n","--dense",action="store_true",help="Use a dense file ar
 parser.add_argument("-q","--quiet",action="store_true",help="If enabled, the program will produce no output except for errors",required=False)
 parser.add_argument("-f","--frequency",action="store",type=float,default=1.0,required=False,help="The frequency to receive status updates at in Hz")
 parser.add_argument("-g","--graph",action="store_true",required=False,help="Use ncurses to display a detailed graph about the throughput of the application")
+parser.add_argument("-c","--compress",action="store_true",required=False,help="Write to ouptut.tar.gz instead of a folder")
 parser.add_argument("filename",action="store",type=str)
 args = parser.parse_args(sys.argv[1:])
 
@@ -29,12 +31,16 @@ append_to_file:bool = args.append
 quiet:bool = args.quiet
 updatefrequency:float = args.frequency
 location_storage_implementation = "sparse_file_array,nodes.db" if args.diskcache else "flex_mem"
+write_tgz = args.compress
 
 if args.diskcache and args.dense:
     location_storage_implementation = "dense_file_array,nodes.db"
 
 if not quiet:
     print(f"Using {location_storage_implementation} for storage.")
+
+if write_tgz and os.path.isfile("output.tar.gz"):
+    os.remove("output.tar.gz")
 
 use_ncurses:bool = args.graph
 
@@ -43,6 +49,9 @@ if use_ncurses:
 
 if (use_ncurses and quiet):
     raise ValueError("Quiet was requested, but so was detailed status. Make up your mind.")
+
+if write_tgz and append_to_file:
+    raise ValueError("Compression and appendation may not be combined.")
 
 oneminute_tracker:list[int] = [1] * int(60 * updatefrequency)
 fiveminute_tracker:list[int] = [1] * int(60 * 5 * updatefrequency)
@@ -259,18 +268,40 @@ except Exception as e:
 if not quiet:
     print("\n\nWriting out...")
 ISFINISHED = True
+mwocount = len(files)
 
-wocount = 0
-for file in files:
-    if append_to_file:
-        with open("output/"+file,"a+",encoding="utf-8") as f:
+if not write_tgz:
+    
+    wocount = 0
+    for file in files:
+        if not quiet and wocount % 10 == 0:
+            print(f"Saving [{wocount}/{mwocount}]",end="\r")
+        if append_to_file:
+            with open("output/"+file,"a+",encoding="utf-8") as f:
+                f.write(files[file])
+        else:
+            with open("output/"+file,"w+",encoding="utf-8") as f:
+                f.write(files[file])
+
+        wocount += 1
+
+    if not quiet:
+        print(f"\nWrote {wocount} files out.")
+        print("Completed")
+
+else:
+    wocount = 0
+    tf = tarfile.open("output.tar.gz","x:gz")
+    for file in files:
+        wocount += 1
+        if not quiet and wocount % 10 == 0:
+            print(f"Saving and compressing [{wocount}/{mwocount}]",end="\r")
+        with open(file,"w+",encoding="utf-8") as f:
             f.write(files[file])
-    else:
-        with open("output/"+file,"w+",encoding="utf-8") as f:
-            f.write(files[file])
+        tf.add(file)
+        os.remove(file)
+    tf.close()
 
-    wocount += 1
-
-if not quiet:
-    print(f"Wrote {wocount} files out.")
-    print("Completed")
+    if not quiet:
+        print(f"\nWrote {wocount} files out.")
+        print("\nCompleted")
