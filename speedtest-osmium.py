@@ -77,9 +77,9 @@ def parse_speed(i:str) -> int:
             
             elif "mih" in i or "mph" in i:
                 if " " in i.strip():
-                    return round(float(i.split(" ")[0]) * 1.6,-1)
+                    return round(float(i.split(" ")[0]) * 1.6)
                 else:
-                    return round(float(i.strip().replace("mph","").replace("mih","")) * 1.6,-1)
+                    return round(float(i.strip().replace("mph","").replace("mih","")) * 1.6)
             
             else:
                 try:
